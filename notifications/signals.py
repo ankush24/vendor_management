@@ -6,9 +6,8 @@ from .tasks import check_expiring_services, check_payment_due_services
 
 @receiver(post_save, sender=Service)
 def service_post_save(sender, instance, created, **kwargs):
-    """Trigger reminder checks when a service is created or updated"""
+    """Run reminder checks when a service is saved"""
     if created or instance.status == 'active':
-        # Check for expiring services
+        # Check if we need to send any reminders
         check_expiring_services.delay()
-        # Check for payment due services
         check_payment_due_services.delay()

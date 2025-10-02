@@ -1,377 +1,253 @@
 # Vendor Management System
 
-A comprehensive vendor management system built with Django REST Framework backend and React frontend, featuring JWT authentication, automated reminders, and PostgreSQL database.
+A simple system I built to manage vendors and their contracts. It helps keep track of when contracts expire and when payments are due.
 
-## Features
+## What it does
 
-### Backend Features
-- **Vendor Management**: CRUD operations for vendors with contact information
-- **Service/Contract Management**: Manage multiple services per vendor with expiry and payment tracking
-- **JWT Authentication**: Secure API access with token-based authentication
-- **Automated Reminders**: Daily checks for expiring services and payment due dates
-- **Email Notifications**: Automated email alerts for upcoming expirations and payments
-- **RESTful API**: Complete API with pagination, filtering, and search capabilities
-- **Admin Interface**: Django admin for system administration
+This system lets you:
+- Add and manage vendors (companies you work with)
+- Create services/contracts for each vendor
+- See which contracts are expiring soon (within 15 days)
+- Get email reminders when contracts are about to expire
+- Update contract statuses (active, expired, payment pending, completed)
 
-### Frontend Features
-- **Modern UI**: Material-UI based responsive interface
-- **Dashboard**: Overview of vendors, services, and key metrics
-- **Vendor Management**: Add, edit, delete, and view vendors
-- **Service Management**: Comprehensive service/contract management
-- **Real-time Status**: Color-coded status indicators for services
-- **Responsive Design**: Works on desktop and mobile devices
+## Tech stack
 
-## Technology Stack
+**Backend:**
+- Django with REST API
+- PostgreSQL database
+- Celery for background email tasks
+- Redis for task queue
+- JWT for authentication
 
-### Backend
-- **Django 5.0.2**: Web framework
-- **Django REST Framework**: API framework
-- **PostgreSQL**: Database
-- **Celery**: Task queue for background jobs
-- **Redis**: Message broker for Celery
-- **JWT**: Authentication
-- **Email**: SMTP email notifications
+**Frontend:**
+- React with TypeScript
+- Material-UI for the interface
+- Axios for API calls
 
-### Frontend
-- **React 18**: Frontend framework
-- **TypeScript**: Type safety
-- **Material-UI**: UI component library
-- **Axios**: HTTP client
-- **React Router**: Client-side routing
-- **Date Pickers**: Date selection components
-
-## Project Structure
-
-```
-vendor_management/
-├── vendor_management_backend/     # Django backend
-│   ├── settings.py               # Django settings
-│   ├── urls.py                   # Main URL configuration
-│   └── celery.py                 # Celery configuration
-├── vendors/                      # Vendors app
-│   ├── models.py                 # Vendor and Service models
-│   ├── serializers.py            # API serializers
-│   ├── views.py                  # API views
-│   ├── urls.py                   # App URL configuration
-│   └── admin.py                  # Admin configuration
-├── notifications/                # Notifications app
-│   ├── tasks.py                  # Celery tasks for reminders
-│   └── signals.py                # Django signals
-├── frontend/                     # React frontend
-│   ├── src/
-│   │   ├── components/           # React components
-│   │   ├── contexts/             # React contexts
-│   │   ├── services/             # API services
-│   │   └── types/                # TypeScript types
-│   └── package.json
-├── requirements.txt              # Python dependencies
-└── README.md                     # This file
-```
-
-## Setup Instructions
+## Setup
 
 ### Prerequisites
-- Python 3.8+
+You'll need:
+- Python 3.11+
 - Node.js 16+
-- PostgreSQL 12+
-- Redis 6+
+- PostgreSQL
+- Redis
 
-### Backend Setup
+### Backend setup
 
-1. **Clone and navigate to the project directory:**
-   ```bash
-   cd ~/Documents/my_project/vendor_management
-   ```
-
-2. **Create and activate virtual environment:**
+1. Clone the repo and cd into it
+2. Create a virtual environment:
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. **Install Python dependencies:**
+3. Install Python packages:
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Set up PostgreSQL database:**
-   ```sql
+4. Set up PostgreSQL:
+   ```bash
+   # Create database
+   createdb vendor_management
+   
+   # Or using psql
+   psql -U postgres
    CREATE DATABASE vendor_management;
-   CREATE USER postgres WITH PASSWORD 'password';
-   GRANT ALL PRIVILEGES ON DATABASE vendor_management TO postgres;
+   CREATE USER vendor_user WITH PASSWORD 'your_password';
+   GRANT ALL PRIVILEGES ON DATABASE vendor_management TO vendor_user;
    ```
 
-5. **Create environment file:**
-   ```bash
-   # Create .env file in the project root
-   DB_NAME=vendor_management
-   DB_USER=postgres
-   DB_PASSWORD=password
-   DB_HOST=localhost
-   DB_PORT=5432
+5. Create a `.env` file in the project root:
+   ```env
    SECRET_KEY=your-secret-key-here
    DEBUG=True
-   ALLOWED_HOSTS=localhost,127.0.0.1
+   DB_NAME=vendor_management
+   DB_USER=vendor_user
+   DB_PASSWORD=your_password
+   DB_HOST=localhost
+   DB_PORT=5432
    EMAIL_HOST=smtp.gmail.com
    EMAIL_PORT=587
    EMAIL_USE_TLS=True
    EMAIL_HOST_USER=your-email@gmail.com
    EMAIL_HOST_PASSWORD=your-app-password
-   DEFAULT_FROM_EMAIL=noreply@vendor-management.com
+   DEFAULT_FROM_EMAIL=noreply@yourcompany.com
    CELERY_BROKER_URL=redis://localhost:6379/0
    CELERY_RESULT_BACKEND=redis://localhost:6379/0
    ```
 
-6. **Run database migrations:**
+6. Run migrations:
    ```bash
-   python manage.py makemigrations
    python manage.py migrate
    ```
 
-7. **Create superuser:**
+7. Create a superuser:
    ```bash
    python manage.py createsuperuser
    ```
 
-8. **Start Redis server:**
+8. Start the backend:
    ```bash
-   redis-server
+   python manage.py runserver
    ```
 
-9. **Start Celery worker (in a new terminal):**
+9. In another terminal, start Celery worker:
    ```bash
-   cd ~/Documents/my_project/vendor_management
-   source venv/bin/activate
    celery -A vendor_management_backend worker --loglevel=info
    ```
 
-10. **Start Celery beat for scheduled tasks (in another terminal):**
+10. Start Celery beat (for scheduled tasks):
     ```bash
-    cd ~/Documents/my_project/vendor_management
-    source venv/bin/activate
     celery -A vendor_management_backend beat --loglevel=info
     ```
 
-11. **Start Django development server:**
-    ```bash
-    python manage.py runserver
-    ```
+### Frontend setup
 
-### Frontend Setup
-
-1. **Navigate to frontend directory:**
+1. Go to the frontend directory:
    ```bash
-   cd ~/Documents/my_project/vendor_management/frontend
+   cd frontend
    ```
 
-2. **Install dependencies:**
+2. Install dependencies:
    ```bash
    npm install
    ```
 
-3. **Create environment file:**
-   ```bash
-   # Create .env.local file in frontend directory
+3. Create a `.env` file in the frontend directory:
+   ```env
    REACT_APP_API_URL=http://localhost:8000/api
    ```
 
-4. **Start development server:**
+4. Start the frontend:
    ```bash
    npm start
    ```
 
-## API Documentation
+The app should be running at http://localhost:3000
 
-### Authentication Endpoints
+## API endpoints
 
-#### Login
-- **POST** `/api/auth/login/`
-- **Body:** `{"username": "string", "password": "string"}`
-- **Response:** `{"access": "string", "refresh": "string"}`
+### Authentication
+- `POST /api/auth/login/` - Login
+- `POST /api/auth/refresh/` - Refresh token
 
-#### Refresh Token
-- **POST** `/api/auth/refresh/`
-- **Body:** `{"refresh": "string"}`
-- **Response:** `{"access": "string"}`
+### Vendors
+- `GET /api/vendors/` - List vendors
+- `POST /api/vendors/` - Create vendor
+- `GET /api/vendors/{id}/` - Get vendor details
+- `PATCH /api/vendors/{id}/` - Update vendor
+- `DELETE /api/vendors/{id}/` - Delete vendor
 
-### Vendor Endpoints
+### Services
+- `GET /api/services/` - List services
+- `POST /api/services/` - Create service
+- `GET /api/services/{id}/` - Get service details
+- `PATCH /api/services/{id}/` - Update service
+- `DELETE /api/services/{id}/` - Delete service
+- `PATCH /api/services/{id}/status/` - Update service status
 
-#### List Vendors
-- **GET** `/api/vendors/`
-- **Query Parameters:** `page`, `status`, `search`, `ordering`
-- **Response:** Paginated list of vendors
+### Required APIs (as per requirements)
+- `GET /api/vendors/` - List all vendors with their active services
+- `GET /api/services/expiring-soon/` - Get services expiring in next 15 days
+- `GET /api/services/payment-due-soon/` - Get services with payment due in next 15 days
 
-#### Get Vendor
-- **GET** `/api/vendors/{id}/`
-- **Response:** Single vendor with services
+## Sample API calls
 
-#### Create Vendor
-- **POST** `/api/vendors/`
-- **Body:** `{"name": "string", "contact_person": "string", "email": "string", "phone": "string", "status": "active|inactive"}`
-- **Response:** Created vendor
+### Login
+```bash
+curl -X POST http://localhost:8000/api/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "admin123"}'
+```
 
-#### Update Vendor
-- **PATCH** `/api/vendors/{id}/`
-- **Body:** Partial vendor data
-- **Response:** Updated vendor
+### Get Vendors
+```bash
+curl -X GET http://localhost:8000/api/vendors/ \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
 
-#### Delete Vendor
-- **DELETE** `/api/vendors/{id}/`
-- **Response:** 204 No Content
+### Create Vendor
+```bash
+curl -X POST http://localhost:8000/api/vendors/ \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "ABC Company",
+    "contact_person": "John Doe",
+    "email": "john@abc.com",
+    "phone": "+1234567890",
+    "status": "active"
+  }'
+```
 
-#### Get Vendors with Active Services
-- **GET** `/api/vendors/with-active-services/`
-- **Response:** List of vendors with active services
+### Create Service
+```bash
+curl -X POST http://localhost:8000/api/services/ \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "vendor": 1,
+    "service_name": "Web Development",
+    "start_date": "2024-01-01",
+    "expiry_date": "2024-12-31",
+    "payment_due_date": "2024-06-30",
+    "amount": 50000.00,
+    "status": "active"
+  }'
+```
 
-### Service Endpoints
+## Database models
 
-#### List Services
-- **GET** `/api/services/`
-- **Query Parameters:** `page`, `vendor`, `status`, `search`, `ordering`
-- **Response:** Paginated list of services
+### Vendor
+- `name` - Company name
+- `contact_person` - Contact person name
+- `email` - Contact email
+- `phone` - Phone number
+- `status` - Active/Inactive
+- `created_at` - When it was created
+- `updated_at` - Last update time
+- `created_by` - Who created it
 
-#### Get Service
-- **GET** `/api/services/{id}/`
-- **Response:** Single service
+### Service
+- `vendor` - Which vendor this belongs to
+- `service_name` - Name of the service/contract
+- `start_date` - When the service starts
+- `expiry_date` - When the service expires
+- `payment_due_date` - When payment is due
+- `amount` - Contract amount
+- `status` - Active/Expired/Payment Pending/Completed
+- `created_at` - When it was created
+- `updated_at` - Last update time
+- `created_by` - Who created it
 
-#### Create Service
-- **POST** `/api/services/`
-- **Body:** `{"vendor": "int", "service_name": "string", "start_date": "YYYY-MM-DD", "expiry_date": "YYYY-MM-DD", "payment_due_date": "YYYY-MM-DD", "amount": "decimal", "status": "active|expired|payment_pending|completed"}`
-- **Response:** Created service
+## How reminders work
 
-#### Update Service
-- **PATCH** `/api/services/{id}/`
-- **Body:** Partial service data
-- **Response:** Updated service
+The system automatically:
+1. Checks daily for services expiring in the next 15 days
+2. Sends email alerts to vendor contacts and service creators
+3. Updates service status based on dates (expires automatically when past expiry date)
 
-#### Delete Service
-- **DELETE** `/api/services/{id}/`
-- **Response:** 204 No Content
+## Why I built it this way
 
-#### Update Service Status
-- **PATCH** `/api/services/{id}/status/`
-- **Body:** `{"status": "active|expired|payment_pending|completed"}`
-- **Response:** Updated service
+- **Django**: I'm familiar with it and it's great for APIs
+- **PostgreSQL**: Reliable database that handles relationships well
+- **Celery**: Needed for background email tasks
+- **React**: Good for building interactive UIs
+- **JWT**: Simple authentication that works well with APIs
 
-#### Get Services Expiring Soon
-- **GET** `/api/services/expiring-soon/`
-- **Response:** List of services expiring in next 15 days
+## Notes
 
-#### Get Services Payment Due Soon
-- **GET** `/api/services/payment-due-soon/`
-- **Response:** List of services with payment due in next 15 days
-
-### Dashboard Endpoints
-
-#### Get Dashboard Statistics
-- **GET** `/api/dashboard/stats/`
-- **Response:** Dashboard statistics object
-
-#### Get Service Reminders
-- **GET** `/api/reminders/`
-- **Response:** List of service reminders
-
-## Database Schema
-
-### Vendor Model
-- `id`: Primary key
-- `name`: Vendor name (unique)
-- `contact_person`: Contact person name
-- `email`: Email address (unique)
-- `phone`: Phone number
-- `status`: Active/Inactive
-- `created_at`: Creation timestamp
-- `updated_at`: Last update timestamp
-- `created_by`: User who created the vendor
-
-### Service Model
-- `id`: Primary key
-- `vendor`: Foreign key to Vendor
-- `service_name`: Name of the service
-- `start_date`: Service start date
-- `expiry_date`: Service expiry date
-- `payment_due_date`: Payment due date
-- `amount`: Service amount
-- `status`: Active/Expired/Payment Pending/Completed
-- `created_at`: Creation timestamp
-- `updated_at`: Last update timestamp
-- `created_by`: User who created the service
-
-### ServiceReminder Model
-- `id`: Primary key
-- `service`: Foreign key to Service
-- `reminder_type`: Expiry/Payment reminder
-- `reminder_date`: Date of reminder
-- `is_sent`: Whether reminder was sent
-- `sent_at`: When reminder was sent
-- `created_at`: Creation timestamp
-
-## Design Choices
-
-### Backend Design
-1. **Django REST Framework**: Chosen for its robust API capabilities and built-in features
-2. **PostgreSQL**: Reliable, ACID-compliant database for production use
-3. **JWT Authentication**: Stateless authentication suitable for API-based applications
-4. **Celery**: Asynchronous task processing for email notifications
-5. **Redis**: Fast in-memory data store for Celery message broker
-6. **Django Signals**: Automatic reminder creation when services are created/updated
-
-### Frontend Design
-1. **React with TypeScript**: Type safety and modern development experience
-2. **Material-UI**: Consistent, accessible UI components
-3. **Context API**: State management for authentication
-4. **Axios Interceptors**: Automatic token refresh and error handling
-5. **Responsive Design**: Mobile-first approach for better user experience
-
-### Security Considerations
-1. **JWT Tokens**: Secure, stateless authentication
-2. **CORS Configuration**: Proper cross-origin resource sharing setup
-3. **Input Validation**: Both client and server-side validation
-4. **SQL Injection Protection**: Django ORM prevents SQL injection
-5. **XSS Protection**: Django's built-in XSS protection
-
-## Usage
-
-1. **Access the application**: Navigate to `http://localhost:3000`
-2. **Login**: Use the superuser credentials created during setup
-3. **Manage Vendors**: Add, edit, and manage vendor information
-4. **Manage Services**: Create and track service contracts
-5. **Monitor Dashboard**: View key metrics and upcoming deadlines
-6. **Admin Interface**: Access Django admin at `http://localhost:8000/admin/`
-
-## API Testing
-
-The API includes Swagger documentation available at:
-- **Swagger UI**: `http://localhost:8000/swagger/`
-- **ReDoc**: `http://localhost:8000/redoc/`
+- All API calls need authentication except login
+- The system automatically updates service status based on dates
+- Email reminders are sent in the background
+- Frontend uses JWT tokens for API calls
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **Database Connection Error**: Ensure PostgreSQL is running and credentials are correct
-2. **Redis Connection Error**: Make sure Redis server is running
-3. **Celery Tasks Not Running**: Check if Celery worker and beat are running
-4. **CORS Errors**: Verify CORS settings in Django settings
-5. **Token Expired**: Check JWT token expiration settings
-
-### Logs
-- Django logs: Check console output
-- Celery logs: Check worker and beat console output
-- Frontend logs: Check browser console
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.
-
-## Support
-
-For support and questions, please contact the development team or create an issue in the repository.
+- Make sure PostgreSQL and Redis are running
+- Check that all environment variables are set
+- Make sure the database exists and migrations are applied
+- Check Celery logs if emails aren't being sent

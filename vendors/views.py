@@ -3,17 +3,19 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.utils import timezone
 from datetime import timedelta
-from .models import Vendor, Service, ServiceReminder
+from .models import Vendor, Service
 from .serializers import (
     VendorSerializer, ServiceSerializer, ServiceCreateSerializer,
-    VendorListSerializer, ServiceStatusUpdateSerializer, ServiceReminderSerializer
+    VendorListSerializer, ServiceStatusUpdateSerializer
 )
 
 
 class VendorListCreateView(generics.ListCreateAPIView):
+    """Handle listing and creating vendors"""
+    
     queryset = Vendor.objects.all()
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -23,11 +25,13 @@ class VendorListCreateView(generics.ListCreateAPIView):
     ordering = ['-created_at']
     
     def get_serializer_class(self):
+        # Use different serializer for list vs create
         if self.request.method == 'GET':
             return VendorListSerializer
         return VendorSerializer
     
     def perform_create(self, serializer):
+        # Set the creator to current user
         serializer.save(created_by=self.request.user)
 
 
@@ -71,21 +75,8 @@ class ServiceDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def vendors_with_active_services(request):
-    """List all vendors with their active services"""
-    vendors = Vendor.objects.filter(
-        status='active',
-        services__status='active'
-    ).distinct().prefetch_related('services')
-    
-    serializer = VendorSerializer(vendors, many=True)
-    return Response(serializer.data)
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def services_expiring_soon(request):
-    """Get all services expiring in the next 15 days"""
+    """Get services that expire within 15 days"""
     today = timezone.now().date()
     fifteen_days_later = today + timedelta(days=15)
     
@@ -101,7 +92,7 @@ def services_expiring_soon(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def services_payment_due_soon(request):
-    """Get all services with payment due in the next 15 days"""
+    """Get services with payment due within 15 days"""
     today = timezone.now().date()
     fifteen_days_later = today + timedelta(days=15)
     
@@ -117,7 +108,7 @@ def services_payment_due_soon(request):
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def update_service_status(request, pk):
-    """Update contract/service status"""
+    """Update service status (active, expired, etc.)"""
     try:
         service = Service.objects.get(pk=pk)
     except Service.DoesNotExist:
@@ -135,57 +126,49 @@ def update_service_status(request, pk):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def service_reminders(request):
-    """Get all service reminders"""
-    reminders = ServiceReminder.objects.select_related('service__vendor').order_by('-created_at')
-    serializer = ServiceReminderSerializer(reminders, many=True)
-    return Response(serializer.data)
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
 def dashboard_stats(request):
-    """Get dashboard statistics"""
+    """Get basic dashboard statistics for the frontend"""
     today = timezone.now().date()
     fifteen_days_later = today + timedelta(days=15)
     
+    # Basic counts
+    total_vendors = Vendor.objects.count()
+    active_vendors = Vendor.objects.filter(status='active').count()
+    total_services = Service.objects.count()
+    active_services = Service.objects.filter(status='active').count()
+    
+    # Expiring and payment due counts
+    expiring_soon = Service.objects.filter(
+        expiry_date__range=[today, fifteen_days_later],
+        status='active'
+    ).count()
+    
+    payment_due_soon = Service.objects.filter(
+        payment_due_date__range=[today, fifteen_days_later],
+        status__in=['active', 'payment_pending']
+    ).count()
+    
+    # Overdue services (past due date)
+    overdue_services = Service.objects.filter(
+        payment_due_date__lt=today,
+        status__in=['active', 'payment_pending']
+    ).count()
+    
+    # Total contract value
+    total_contract_value = Service.objects.aggregate(
+        total=Sum('amount')
+    )['total'] or 0
+    
     stats = {
-        'total_vendors': Vendor.objects.count(),
-        'active_vendors': Vendor.objects.filter(status='active').count(),
-        'total_services': Service.objects.count(),
-        'active_services': Service.objects.filter(status='active').count(),
-        'expiring_soon': Service.objects.filter(
-            expiry_date__range=[today, fifteen_days_later],
-            status='active'
-        ).count(),
-        'payment_due_soon': Service.objects.filter(
-            payment_due_date__range=[today, fifteen_days_later],
-            status__in=['active', 'payment_pending']
-        ).count(),
-        'overdue_services': Service.objects.filter(
-            Q(expiry_date__lt=today) | Q(payment_due_date__lt=today),
-            status='active'
-        ).count(),
-        'total_contract_value': sum(
-            service.amount for service in Service.objects.filter(status='active')
-        )
+        'total_vendors': total_vendors,
+        'active_vendors': active_vendors,
+        'total_services': total_services,
+        'active_services': active_services,
+        'expiring_soon': expiring_soon,
+        'payment_due_soon': payment_due_soon,
+        'overdue_services': overdue_services,
+        'total_contract_value': float(total_contract_value),
     }
     
     return Response(stats)
 
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def vendor_services(request, vendor_id):
-    """Get all services for a specific vendor"""
-    try:
-        vendor = Vendor.objects.get(pk=vendor_id)
-    except Vendor.DoesNotExist:
-        return Response(
-            {'error': 'Vendor not found'}, 
-            status=status.HTTP_404_NOT_FOUND
-        )
-    
-    services = vendor.services.all().select_related('created_by')
-    serializer = ServiceSerializer(services, many=True)
-    return Response(serializer.data)

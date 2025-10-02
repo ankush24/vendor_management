@@ -6,6 +6,8 @@ from datetime import timedelta
 
 
 class Vendor(models.Model):
+    """Represents a vendor/company we work with"""
+    
     STATUS_CHOICES = [
         ('active', 'Active'),
         ('inactive', 'Inactive'),
@@ -28,16 +30,11 @@ class Vendor(models.Model):
     def __str__(self):
         return self.name
     
-    @property
-    def active_services_count(self):
-        return self.services.filter(status='active').count()
-    
-    @property
-    def total_contract_value(self):
-        return sum(service.amount for service in self.services.filter(status='active'))
 
 
 class Service(models.Model):
+    """Represents a service/contract with a vendor"""
+    
     STATUS_CHOICES = [
         ('active', 'Active'),
         ('expired', 'Expired'),
@@ -67,40 +64,28 @@ class Service(models.Model):
     
     @property
     def days_until_expiry(self):
+        """Get number of days until expiry"""
         today = timezone.now().date()
         return (self.expiry_date - today).days
     
     @property
     def days_until_payment_due(self):
+        """Get number of days until payment due"""
         today = timezone.now().date()
         return (self.payment_due_date - today).days
     
     @property
     def is_expiring_soon(self):
+        """Check if service expires within 15 days"""
         return self.days_until_expiry <= 15 and self.days_until_expiry >= 0
     
     @property
     def is_payment_due_soon(self):
+        """Check if payment is due within 15 days"""
         return self.days_until_payment_due <= 15 and self.days_until_payment_due >= 0
     
-    @property
-    def is_overdue(self):
-        today = timezone.now().date()
-        return (self.expiry_date < today or self.payment_due_date < today) and self.status == 'active'
-    
-    @property
-    def status_color(self):
-        if self.is_overdue:
-            return 'red'
-        elif self.is_expiring_soon or self.is_payment_due_soon:
-            return 'orange'
-        elif self.status == 'completed':
-            return 'green'
-        else:
-            return 'blue'
-    
     def save(self, *args, **kwargs):
-        # Auto-update status based on dates
+        """Auto-update status based on dates when saving"""
         today = timezone.now().date()
         if self.expiry_date < today and self.status == 'active':
             self.status = 'expired'
@@ -108,21 +93,3 @@ class Service(models.Model):
             self.status = 'payment_pending'
         super().save(*args, **kwargs)
 
-
-class ServiceReminder(models.Model):
-    service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name='reminders')
-    reminder_type = models.CharField(max_length=20, choices=[
-        ('expiry', 'Expiry Reminder'),
-        ('payment', 'Payment Due Reminder'),
-    ])
-    reminder_date = models.DateField()
-    is_sent = models.BooleanField(default=False)
-    sent_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        ordering = ['-created_at']
-        unique_together = ['service', 'reminder_type', 'reminder_date']
-    
-    def __str__(self):
-        return f"{self.service} - {self.reminder_type} - {self.reminder_date}"
